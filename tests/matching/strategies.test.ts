@@ -195,3 +195,41 @@ describe("clampTier", () => {
     expect(order.indexOf(better)).toBeLessThanOrEqual(order.indexOf(worse));
   });
 });
+
+describe("stated-preference emphasis", () => {
+  it("raises the location weight once a client names cities", () => {
+    const client = profile({ gender: "FEMALE" });
+    const plain = strategyFor(client, preference());
+    const stated = strategyFor(client, preference({ cities: ["Chennai"] }));
+    expect(stated.location!.weight).toBeGreaterThan(plain.location!.weight);
+    expect(stated.language!.weight).toBe(plain.language!.weight);
+  });
+
+  it("leaves the strategy alone when nothing is stated", () => {
+    const client = profile({ gender: "MALE" });
+    expect(strategyFor(client, preference())).toEqual(strategyFor(client, null));
+  });
+
+  it("lets an explicit override beat the automatic emphasis", () => {
+    const stated = strategyFor(
+      profile({ gender: "FEMALE" }),
+      preference({ cities: ["Chennai"], weightOverrides: { location: 3 } }),
+    );
+    expect(stated.location!.weight).toBe(3);
+  });
+
+  it("moves a candidate who matches the stated city above one who does not", () => {
+    const client = profile({ gender: "FEMALE", city: "Chennai", motherTongue: "Tamil" });
+    const local = profile({ id: "local", gender: "MALE", city: "Chennai", motherTongue: "Tamil" });
+    const away = profile({
+      id: "away", gender: "MALE", city: "Noida", state: "Uttar Pradesh",
+      motherTongue: "Hindi", languages: ["Hindi"], openToRelocate: "NO",
+    });
+    const pref = preference({ cities: ["Chennai"], motherTongues: ["Tamil"] });
+
+    const gapWithout = scorePair(client, local, ctx()).ruleScore - scorePair(client, away, ctx()).ruleScore;
+    const gapWith =
+      scorePair(client, local, ctx(pref)).ruleScore - scorePair(client, away, ctx(pref)).ruleScore;
+    expect(gapWith).toBeGreaterThan(gapWithout);
+  });
+});

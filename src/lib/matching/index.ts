@@ -1,5 +1,5 @@
 import { FACTORS, STRATEGIES, type Strategy } from "./config";
-import { applyOverrides } from "./weights";
+import { applyOverrides, emphasiseStated } from "./weights";
 import { tierForScore } from "./tier";
 import type {
   BreakdownRow, Ctx, FactorName, MatchProfile, Preference, RankedCandidate,
@@ -7,7 +7,9 @@ import type {
 
 export function strategyFor(client: MatchProfile, preference: Preference | null): Strategy {
   const base = client.gender === "MALE" ? STRATEGIES.MALE_CLIENT : STRATEGIES.FEMALE_CLIENT;
-  return applyOverrides(base, preference?.weightOverrides);
+  // Emphasis first, so an explicit matchmaker override still has the last word.
+  const emphasised = emphasiseStated(base, preference);
+  return applyOverrides(emphasised, preference?.weightOverrides);
 }
 
 export function scorePair(
