@@ -1,0 +1,336 @@
+// Prisma schema — transcribed from ARCHITECTURE.md §6.2.
+// ARCHITECTURE.md remains the source of truth; keep the two in sync.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7: connection URLs live in prisma.config.ts (for Migrate) and are
+// passed to PrismaClient via a driver adapter (see src/lib/db.ts).
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────── Enums ─────────
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum MaritalStatus {
+  NEVER_MARRIED
+  DIVORCED
+  AWAITING_DIVORCE
+  WIDOWED
+  ANNULLED
+}
+
+enum YesNoMaybe {
+  YES
+  NO
+  MAYBE
+}
+
+enum Diet {
+  VEG
+  NON_VEG
+  EGGETARIAN
+  JAIN
+  VEGAN
+}
+
+enum Habit {
+  NO
+  OCCASIONALLY
+  YES
+}
+
+enum FamilyType {
+  NUCLEAR
+  JOINT
+}
+
+enum FamilyValues {
+  TRADITIONAL
+  MODERATE
+  LIBERAL
+}
+
+enum Manglik {
+  YES
+  NO
+  PARTIAL
+  DONT_KNOW
+}
+
+enum EducationLevel {
+  DIPLOMA
+  BACHELORS
+  MASTERS
+  DOCTORATE
+}
+
+enum ProfileCreatedBy {
+  SELF
+  PARENT
+  SIBLING
+  RELATIVE
+  FRIEND
+}
+
+enum PipelineStatus {
+  NEW
+  VERIFIED
+  SHORTLISTING
+  MATCH_SENT
+  MEETING_SCHEDULED
+  ON_HOLD
+  MATCHED
+  CLOSED
+}
+
+enum MatchStatus {
+  SUGGESTED   // produced by the engine, not yet acted on
+  SAVED       // matchmaker saved it for later; pinned to the top, never auto-dropped
+  SKIPPED     // matchmaker passed on it; excluded from future regeneration
+  SENT        // intro sent to the client
+  ACCEPTED    // the client said yes
+  DECLINED    // the client said no
+}
+
+enum MatchTier {
+  HIGH_POTENTIAL
+  GOOD
+  WORTH_EXPLORING
+  LOW
+}
+
+enum NoteType {
+  CALL
+  MEETING
+  GENERAL
+}
+
+enum OutboxStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+enum ActivityType {
+  STATUS_CHANGED
+  NOTE_ADDED
+  MATCHES_GENERATED
+  MATCH_SENT
+  MATCH_SKIPPED
+  MATCH_SAVED
+  MATCH_STATUS_CHANGED
+  PREFERENCES_UPDATED
+  CONTACT_REVEALED
+}
+
+// ───────── Models ─────────
+
+model Matchmaker {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  createdAt    DateTime      @default(now())
+
+  clients      Profile[]
+  notes        Note[]
+  activities   ActivityLog[]
+}
+
+model Profile {
+  id               String           @id @default(cuid())
+
+  // Identity
+  firstName        String
+  lastName         String
+  gender           Gender
+  dateOfBirth      DateTime
+  photoUrl         String?
+  about            String?
+  profileCreatedBy ProfileCreatedBy @default(SELF)
+  isVerified       Boolean          @default(false)
+
+  // Location
+  country          String           @default("India")
+  state            String?
+  city             String
+  heightCm         Int
+
+  // Contact (never sent to the LLM)
+  email            String           @unique
+  phone            String
+
+  // Education and career
+  undergradCollege String
+  degree           String
+  highestEducation EducationLevel
+  annualIncome     Int              // INR per year
+  company          String?
+  designation      String?
+
+  // Background
+  maritalStatus    MaritalStatus
+  languages        String[]
+  motherTongue     String
+  religion         String
+  caste            String?
+  subCaste         String?
+  gotra            String?
+  manglik          Manglik          @default(DONT_KNOW)
+  brothers         Int              @default(0)
+  sisters          Int              @default(0)
+  familyType       FamilyType
+  familyValues     FamilyValues
+  fatherOccupation String?
+  motherOccupation String?
+
+  // Lifestyle and intent
+  diet             Diet
+  smoking          Habit            @default(NO)
+  drinking         Habit            @default(NO)
+  wantKids         YesNoMaybe
+  openToRelocate   YesNoMaybe
+  openToPets       YesNoMaybe
+
+  // Client fields
+  isClient         Boolean          @default(false)
+  matchmakerId     String?
+  matchmaker       Matchmaker?      @relation(fields: [matchmakerId], references: [id])
+
+  preference       PartnerPreference?
+  pipeline         CustomerPipeline?
+  matchesAsClient    Match[]        @relation("ClientMatches")
+  matchesAsCandidate Match[]        @relation("CandidateMatches")
+  notes            Note[]
+  activities       ActivityLog[]
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([gender, isClient])
+  @@index([dateOfBirth])
+  @@index([religion])
+  @@index([city])
+  @@index([matchmakerId])
+}
+
+model PartnerPreference {
+  id               String       @id @default(cuid())
+  profileId        String       @unique
+  profile          Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  minAge           Int?
+  maxAge           Int?
+  minHeightCm      Int?
+  maxHeightCm      Int?
+  minIncome        Int?
+  religions        String[]     // empty = any
+  castes           String[]     // ignored when casteNoBar = true
+  casteNoBar       Boolean      @default(true)
+  motherTongues    String[]
+  cities           String[]
+  diets            Diet[]
+  acceptDivorced   Boolean      @default(false)
+  manglikMatters   Boolean      @default(false)
+
+  // Optional per-client weight overrides, e.g. { "income": 0 }
+  weightOverrides  Json?
+
+  updatedAt        DateTime     @updatedAt
+}
+
+model CustomerPipeline {
+  id               String         @id @default(cuid())
+  profileId        String         @unique
+  profile          Profile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  status           PipelineStatus @default(NEW)
+  lastContactAt    DateTime?
+  updatedAt        DateTime       @updatedAt
+
+  @@index([status])
+}
+
+model Match {
+  id            String      @id @default(cuid())
+  clientId      String
+  client        Profile     @relation("ClientMatches", fields: [clientId], references: [id], onDelete: Cascade)
+  candidateId   String
+  candidate     Profile     @relation("CandidateMatches", fields: [candidateId], references: [id], onDelete: Cascade)
+
+  ruleScore     Int                 // 0–100 from deterministic engine
+  ruleBreakdown Json                // [{ factor, score, weight, reason }]
+  aiTier        MatchTier?
+  aiReasons     Json?               // string[]
+  aiConcern     String?
+  aiModel       String?
+  pairHash      String              // fingerprint of both profiles' relevant fields
+
+  status        MatchStatus @default(SUGGESTED)
+  introSubject  String?
+  introBody     String?
+  sentAt        DateTime?
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  outbox        EmailOutbox[]
+
+  @@unique([clientId, candidateId])
+  @@index([clientId, ruleScore])
+  @@index([status, sentAt])
+}
+
+model EmailOutbox {
+  id        String       @id @default(cuid())
+  matchId   String
+  match     Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  to        String
+  subject   String
+  body      String
+  status    OutboxStatus @default(QUEUED)
+  createdAt DateTime     @default(now())
+}
+
+model Note {
+  id        String     @id @default(cuid())
+  profileId String
+  profile   Profile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    Matchmaker @relation(fields: [authorId], references: [id])
+  type      NoteType   @default(GENERAL)
+  body      String
+  createdAt DateTime   @default(now())
+
+  @@index([profileId, createdAt])
+}
+
+model ActivityLog {
+  id        String       @id @default(cuid())
+  actorId   String
+  actor     Matchmaker   @relation(fields: [actorId], references: [id])
+  profileId String
+  profile   Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  type      ActivityType
+  payload   Json         // e.g. { from: "NEW", to: "VERIFIED" }
+  createdAt DateTime     @default(now())
+
+  @@index([profileId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  ip        String?
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+}
