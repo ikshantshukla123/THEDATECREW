@@ -13,8 +13,10 @@ export function BiodataSection({
   fields?: Field[];
   children?: React.ReactNode;
 }) {
+  // overflow-hidden: the header carries its own fill, so without it the
+  // square top corners paint over the card's rounded ones.
   return (
-    <section className="rounded-lg border border-border bg-surface">
+    <section className="overflow-hidden rounded-lg border border-border bg-surface">
       <h3 className="border-b border-border bg-surface-muted px-5 py-3 text-sm font-semibold text-fg">
         {title}
       </h3>
