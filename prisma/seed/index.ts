@@ -5,6 +5,7 @@ import { PrismaClient, type PipelineStatus, type Prisma } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { makeProfile } from "./factories/profile.factory";
 import { makePreference } from "./factories/preference.factory";
+import { makeMatch } from "./factories/match.factory";
 
 // Direct TCP, not the serverless WebSocket driver the app uses — this is a
 // long-running script doing bulk writes, which is what pg is built for.
@@ -29,8 +30,25 @@ const MATCHMAKERS = [
   { name: "Dev Anand", email: "dev@thedatingcompany.in" },
 ];
 
-const CLIENTS_PER_GENDER = 20;
+// UI-UX.md §1: a matchmaker carries 20-60 clients. Three matchmakers at the
+// doc's "~40 total" would give each of them 13, below that floor.
+const CLIENTS_PER_GENDER = 39;
 const POOL_PER_GENDER = 150;
+
+const AI_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+
+/**
+ * How many matches a client has, and in what state, follows from where they
+ * are in the pipeline. Without this the funnel claims clients are at
+ * "Match Sent" while the matches table is empty.
+ */
+const MATCH_PLAN: Partial<Record<PipelineStatus, { suggested: [number, number]; sent: [number, number] }>> = {
+  SHORTLISTING:      { suggested: [3, 6], sent: [0, 0] },
+  MATCH_SENT:        { suggested: [2, 4], sent: [1, 3] },
+  MEETING_SCHEDULED: { suggested: [1, 3], sent: [2, 4] },
+  MATCHED:           { suggested: [0, 2], sent: [2, 4] },
+  CLOSED:            { suggested: [0, 1], sent: [1, 2] },
+};
 
 /** Pipeline spread — weighted so the funnel looks like a real book of work. */
 const PIPELINE_SPREAD: Array<[PipelineStatus, number]> = [
@@ -120,12 +138,31 @@ async function main() {
   }
   await prisma.profile.createMany({ data: poolData });
 
+  // Re-read with the fields the match factory scores on.
+  const PARTY_SELECT = {
+    id: true, firstName: true, city: true, religion: true, motherTongue: true,
+    diet: true, familyValues: true, wantKids: true, openToRelocate: true,
+    annualIncome: true, heightCm: true, dateOfBirth: true,
+    highestEducation: true, designation: true,
+  } as const;
+
+  const poolByGender = {
+    MALE: await prisma.profile.findMany({
+      where: { isClient: false, gender: "MALE", isVerified: true }, select: PARTY_SELECT,
+    }),
+    FEMALE: await prisma.profile.findMany({
+      where: { isClient: false, gender: "FEMALE", isVerified: true }, select: PARTY_SELECT,
+    }),
+  };
+
   console.log(`Creating ${CLIENTS_PER_GENDER * 2} clients...`);
   // Profiles must be created one at a time — createMany cannot write the
   // nested preference and pipeline rows. Notes and activity are collected
   // and written in bulk afterwards to keep the round-trip count down.
   const notes: Prisma.NoteCreateManyInput[] = [];
   const activity: Prisma.ActivityLogCreateManyInput[] = [];
+  const matches: Prisma.MatchCreateManyInput[] = [];
+  const outbox: Array<{ clientId: string; candidateId: string; to: string; subject: string; body: string }> = [];
   let clientIndex = 0;
 
   for (const gender of ["MALE", "FEMALE"] as const) {
@@ -154,6 +191,65 @@ async function main() {
         },
       });
 
+      // Matches, consistent with the pipeline stage.
+      const plan = MATCH_PLAN[status];
+      if (plan) {
+        const candidates = faker.helpers.shuffle(
+          [...poolByGender[gender === "MALE" ? "FEMALE" : "MALE"]],
+        );
+        const clientParty = {
+          id: client.id, firstName: row.firstName as string, city: row.city as string,
+          religion: row.religion as string, motherTongue: row.motherTongue as string,
+          diet: String(row.diet), familyValues: String(row.familyValues),
+          wantKids: String(row.wantKids), openToRelocate: String(row.openToRelocate),
+          annualIncome: row.annualIncome as number, heightCm: row.heightCm as number,
+          dateOfBirth: row.dateOfBirth as Date,
+          highestEducation: String(row.highestEducation),
+          designation: (row.designation as string) ?? null,
+        };
+
+        const nSent = faker.number.int({ min: plan.sent[0], max: plan.sent[1] });
+        const nSuggested = faker.number.int({ min: plan.suggested[0], max: plan.suggested[1] });
+        let cursor = 0;
+
+        for (let m = 0; m < nSent && cursor < candidates.length; m++, cursor++) {
+          const candidate = candidates[cursor];
+          const sentAt = faker.date.recent({ days: 35 });
+
+          // Outcome depends on the stage: a MATCHED client accepted someone.
+          let outcome: "SENT" | "ACCEPTED" | "DECLINED" = "SENT";
+          if (status === "MATCHED" && m === 0) outcome = "ACCEPTED";
+          else if (status === "MEETING_SCHEDULED" && m === 0) outcome = "ACCEPTED";
+          else outcome = faker.helpers.weightedArrayElement([
+            { value: "SENT" as const, weight: 5 },
+            { value: "DECLINED" as const, weight: 3 },
+            { value: "ACCEPTED" as const, weight: 2 },
+          ]);
+
+          matches.push(makeMatch(clientParty, candidate, outcome, sentAt, AI_MODEL));
+          outbox.push({
+            clientId: client.id, candidateId: candidate.id, to: row.email as string,
+            subject: `A profile we think you'll like, ${row.firstName}`,
+            body: `Intro for ${candidate.firstName}.`,
+          });
+          activity.push({
+            actorId: matchmaker.id, profileId: client.id, type: "MATCH_SENT",
+            payload: { candidateId: candidate.id, tier: "GOOD" }, createdAt: sentAt,
+          });
+        }
+
+        for (let m = 0; m < nSuggested && cursor < candidates.length; m++, cursor++) {
+          matches.push(makeMatch(clientParty, candidates[cursor], "SUGGESTED", null, AI_MODEL));
+        }
+
+        if (nSuggested > 0) {
+          activity.push({
+            actorId: matchmaker.id, profileId: client.id, type: "MATCHES_GENERATED",
+            payload: { count: nSuggested }, createdAt: faker.date.recent({ days: 25 }),
+          });
+        }
+      }
+
       const noteCount = status === "NEW"
         ? faker.number.int({ min: 0, max: 1 })
         : faker.number.int({ min: 1, max: 4 });
@@ -178,15 +274,31 @@ async function main() {
     }
   }
 
-  console.log(`Writing ${notes.length} notes and ${activity.length} activity rows...`);
+  console.log(`Writing ${matches.length} matches, ${notes.length} notes, ${activity.length} activity rows...`);
+  await prisma.match.createMany({ data: matches });
   await prisma.note.createMany({ data: notes });
   await prisma.activityLog.createMany({ data: activity });
+
+  // Outbox rows need the match ids, so they come after the matches land.
+  const sentMatches = await prisma.match.findMany({
+    where: { status: { in: ["SENT", "ACCEPTED", "DECLINED"] } },
+    select: { id: true, clientId: true, candidateId: true },
+  });
+  const byPair = new Map(sentMatches.map((m) => [`${m.clientId}:${m.candidateId}`, m.id]));
+  await prisma.emailOutbox.createMany({
+    data: outbox.flatMap((o) => {
+      const matchId = byPair.get(`${o.clientId}:${o.candidateId}`);
+      return matchId ? [{ matchId, to: o.to, subject: o.subject, body: o.body, status: "SENT" as const }] : [];
+    }),
+  });
 
   console.log("Summary");
   console.table({
     matchmakers: await prisma.matchmaker.count(),
     clients: await prisma.profile.count({ where: { isClient: true } }),
     poolProfiles: await prisma.profile.count({ where: { isClient: false } }),
+    matches: await prisma.match.count(),
+    matchesSent: await prisma.match.count({ where: { status: { in: ["SENT", "ACCEPTED", "DECLINED"] } } }),
     notes: await prisma.note.count(),
     activity: await prisma.activityLog.count(),
   });
