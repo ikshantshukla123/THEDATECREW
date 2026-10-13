@@ -33,6 +33,7 @@ export function listMatches(clientId: string) {
           dateOfBirth: true, heightCm: true, city: true, designation: true,
           highestEducation: true, degree: true, motherTongue: true,
           diet: true, isVerified: true, annualIncome: true,
+          manglik: true, religion: true,
         },
       },
     },

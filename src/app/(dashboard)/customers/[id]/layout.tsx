@@ -8,6 +8,7 @@ import { NotFoundError } from "@/lib/errors";
 import { Avatar } from "@/components/shared/avatar";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
+import { ManglikBadge } from "@/components/shared/manglik-badge";
 import { ProfileTabs } from "@/features/customers/components/profile-tabs";
 import { StatusSelect } from "@/features/customers/components/status-select";
 import { age, formatHeight, formatIncome, relativeTime, titleCase } from "@/lib/format";
@@ -59,8 +60,9 @@ export default async function ClientLayout({
             <p className="text-sm text-fg-muted">{client.city}</p>
           </div>
 
-          <div className="flex justify-center">
+          <div className="flex flex-wrap justify-center gap-2">
             {client.pipeline && <StatusBadge status={client.pipeline.status} />}
+            <ManglikBadge manglik={client.manglik} religion={client.religion} />
           </div>
 
           <dl className="flex flex-col gap-2.5 border-t border-border pt-4 text-[13px]">

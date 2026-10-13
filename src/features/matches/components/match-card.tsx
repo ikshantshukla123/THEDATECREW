@@ -5,6 +5,7 @@ import { AlertTriangle, Bookmark, Heart, X } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar } from "@/components/shared/avatar";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
+import { ManglikBadge } from "@/components/shared/manglik-badge";
 import { age, formatHeight, relativeTime, titleCase } from "@/lib/format";
 import { ScoreRing } from "./score-ring";
 import { TierBadge } from "./tier-badge";
@@ -62,6 +63,7 @@ export function MatchCard({
           </div>
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
             {match.aiTier && <TierBadge tier={match.aiTier} />}
+            <ManglikBadge manglik={c.manglik} religion={c.religion} />
             <OverlapBadge overlap={match.overlap} />
           </div>
         </div>
