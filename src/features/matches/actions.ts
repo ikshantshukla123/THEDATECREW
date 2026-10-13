@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { ok, toActionResult, type ActionResult } from "@/lib/result";
-import { prisma } from "@/lib/db";
+import { prisma, withRetry } from "@/lib/db";
 import { NotFoundError } from "@/lib/errors";
 import { logActivity } from "@/features/audit/service";
 import { findClientById } from "@/features/customers/repo";
@@ -54,7 +54,7 @@ async function setMatchStatus(
   const client = await findClientById(session.matchmakerId, clientId);
   if (!client) throw new NotFoundError("Client");
 
-  await prisma.$transaction(async (tx) => {
+  await withRetry(() => prisma.$transaction(async (tx) => {
     await tx.match.update({ where: { id: matchId, clientId }, data: { status } });
     await logActivity(tx, {
       actorId: session.matchmakerId,
@@ -62,7 +62,7 @@ async function setMatchStatus(
       type: activity,
       payload: { matchId },
     });
-  });
+  }));
 
   revalidatePath(`/customers/${clientId}/matches`);
   revalidatePath(`/customers/${clientId}/activity`);

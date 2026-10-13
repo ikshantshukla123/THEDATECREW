@@ -1,6 +1,15 @@
+import net from "node:net";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { env } from "./env";
+
+/**
+ * Node races IPv6 and IPv4 (Happy Eyeballs) with a 250ms budget per address.
+ * On a network with no IPv6 route and ordinary latency, the IPv4 handshake
+ * cannot finish in time, so every address reports ETIMEDOUT and the connect
+ * fails in under a second. Give each attempt a realistic window.
+ */
+net.setDefaultAutoSelectFamilyAttemptTimeout(5_000);
 
 /**
  * pg over the POOLED Neon endpoint, not the serverless WebSocket driver.
@@ -35,12 +44,15 @@ function isTransient(error: unknown): boolean {
 }
 
 /**
+ * Also exported, because the $allOperations extension does not wrap
+ * $transaction — starting one can fail on its own and needs the same retry.
+ *
  * Neon's free tier suspends idle computes. The first connection after a
  * pause is rejected outright — fast, not a timeout — and only succeeds once
  * the compute has woken, which takes a couple of seconds. Without this the
  * first page load after any quiet period errors.
  */
-async function withRetry<T>(run: () => Promise<T>, attempts = 3): Promise<T> {
+export async function withRetry<T>(run: () => Promise<T>, attempts = 3): Promise<T> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {

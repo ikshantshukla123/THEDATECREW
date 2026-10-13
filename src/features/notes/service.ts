@@ -1,6 +1,6 @@
 import "server-only";
 import type { NoteType } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { prisma, withRetry } from "@/lib/db";
 import { NotFoundError } from "@/lib/errors";
 import { logActivity } from "@/features/audit/service";
 import { findClientById } from "@/features/customers/repo";
@@ -17,7 +17,7 @@ export async function addNote(
   const client = await findClientById(matchmakerId, input.profileId);
   if (!client) throw new NotFoundError("Client");
 
-  await prisma.$transaction(async (tx) => {
+  await withRetry(() => prisma.$transaction(async (tx) => {
     await tx.note.create({
       data: {
         profileId: input.profileId,
@@ -41,5 +41,5 @@ export async function addNote(
       type: "NOTE_ADDED",
       payload: { noteType: input.type },
     });
-  });
+  }));
 }

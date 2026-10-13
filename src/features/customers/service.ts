@@ -1,6 +1,6 @@
 import "server-only";
 import type { PipelineStatus } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { prisma, withRetry } from "@/lib/db";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { logActivity } from "@/features/audit/service";
 import * as repo from "./repo";
@@ -48,7 +48,7 @@ export async function updateStatus(
     );
   }
 
-  await prisma.$transaction(async (tx) => {
+  await withRetry(() => prisma.$transaction(async (tx) => {
     await tx.customerPipeline.update({
       where: { profileId },
       data: { status: next },
@@ -59,7 +59,7 @@ export async function updateStatus(
       type: "STATUS_CHANGED",
       payload: { from: current, to: next },
     });
-  });
+  }));
 }
 
 /** Revealing contact details is itself auditable — §7.3. */
@@ -67,14 +67,14 @@ export async function revealContact(matchmakerId: string, profileId: string) {
   const client = await repo.findClientById(matchmakerId, profileId);
   if (!client) throw new NotFoundError("Client");
 
-  await prisma.$transaction(async (tx) => {
+  await withRetry(() => prisma.$transaction(async (tx) => {
     await logActivity(tx, {
       actorId: matchmakerId,
       profileId,
       type: "CONTACT_REVEALED",
       payload: {},
     });
-  });
+  }));
 
   return { email: client.email, phone: client.phone };
 }

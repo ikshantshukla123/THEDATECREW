@@ -1,6 +1,6 @@
 import "server-only";
 import type { MatchTier, Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { prisma, withRetry } from "@/lib/db";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { logActivity } from "@/features/audit/service";
 import { findClientById } from "@/features/customers/repo";
@@ -96,7 +96,7 @@ export async function generateMatches(matchmakerId: string, clientId: string) {
   // The AI call already finished — no network is held open in here. Still
   // needs generous limits: ten upserts over a serverless connection comfortably
   // exceed Prisma's 2s maxWait / 5s timeout defaults.
-  await prisma.$transaction(
+  await withRetry(() => prisma.$transaction(
     async (tx) => {
       // Upsert, never delete-and-insert: a SENT or SKIPPED row must survive.
       for (const row of rows) {
@@ -122,7 +122,7 @@ export async function generateMatches(matchmakerId: string, clientId: string) {
       });
     },
     { maxWait: 20_000, timeout: 60_000 },
-  );
+  ));
 
   return {
     generated: rows.length,
@@ -202,7 +202,7 @@ export async function sendMatch(
   const sentAt = new Date();
   const movesPipeline = client.pipeline?.status === "SHORTLISTING";
 
-  await prisma.$transaction(
+  await withRetry(() => prisma.$transaction(
     async (tx) => {
       await tx.match.update({
         where: { id: match.id },
@@ -252,7 +252,7 @@ export async function sendMatch(
       });
     },
     { maxWait: 20_000, timeout: 60_000 },
-  );
+  ));
 
   return { movedPipeline: movesPipeline };
 }
