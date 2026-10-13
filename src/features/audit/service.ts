@@ -1,0 +1,18 @@
+import "server-only";
+import type { ActivityType, Prisma } from "@prisma/client";
+
+/**
+ * Called with the transaction client so the log can never drift from the
+ * mutation it describes — ARCHITECTURE.md §12.
+ */
+export function logActivity(
+  tx: Prisma.TransactionClient,
+  entry: {
+    actorId: string;
+    profileId: string;
+    type: ActivityType;
+    payload: Prisma.InputJsonValue;
+  },
+) {
+  return tx.activityLog.create({ data: entry });
+}
