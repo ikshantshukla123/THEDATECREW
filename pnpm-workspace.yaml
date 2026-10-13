@@ -1,0 +1,10 @@
+# Which packages may run postinstall scripts.
+# Prisma needs its query engine; esbuild/workerd ship platform binaries
+# that Vitest and the Next toolchain execute.
+allowBuilds:
+  '@prisma/engines': true
+  prisma: true
+  esbuild: true
+  workerd: true
+  sharp: false
+  unrs-resolver: false
