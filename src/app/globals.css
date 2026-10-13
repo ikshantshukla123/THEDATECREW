@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+/* Class-driven so an explicit choice beats the OS setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Emerald, gold and ink on ivory. --accent and --warning are FILL ONLY;
+   use the -text variants for glyphs. Ratios measured against --surface. */
+:root {
+  --primary: #1f5c4a;
+  --primary-hover: #174838;
+  --primary-soft: #e6f0ec;
+  --primary-fg: #ffffff;    /* text/icons ON --primary — 8.6:1 */
+  --ink: #0f1b2d;
+
+  --accent: #b8912f;        /* fill only — 3.0:1 */
+  --accent-text: #6e5313;   /* text        — 7.2:1 */
+  --accent-soft: #f7f0dc;
+
+  --verified: #2f6690;
+  --verified-soft: #e6eef5;
+
+  --bg: #f6f3ee;
+  --surface: #ffffff;
+  --surface-muted: #faf8f4;
+  --border: #e5dfd5;
+
+  --text: #14171f;          /* 16.8:1 */
+  --text-muted: #5f6470;    /*  6.4:1 */
+  --text-subtle: #6e7480;   /*  4.9:1 */
+
+  --success: #2e7d4f;       /*  5.0:1 */
+  --warning: #b7791f;       /* fill only — 3.4:1 */
+  --warning-text: #8a5a14;  /* text        — 5.1:1 */
+  --danger: #b5523b;        /*  5.0:1 */
+}
+
+.dark {
+  --primary: #5fb79a;
+  --primary-hover: #7cc8ae;
+  --primary-soft: #16302a;
+  --primary-fg: #0a1220;    /* dark ink ON mint — 9.1:1. White here is 2.2:1 */
+  --ink: #0a1220;
+
+  --accent: #d9b65a;
+  --accent-text: #e8cc7e;
+  --accent-soft: #33291a;
+
+  --verified: #6fa3cc;
+  --verified-soft: #172636;
+
+  --bg: #101318;
+  --surface: #171b22;
+  --surface-muted: #1d222a;
+  --border: #2a303a;
+
+  --text: #eef0f3;
+  --text-muted: #a7adb8;
+  --text-subtle: #8b919c;
+
+  --success: #5db37e;
+  --warning: #e0a54a;
+  --warning-text: #e8b968;
+  --danger: #e07a62;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-fg: var(--primary-fg);
+  --color-ink: var(--ink);
+  --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
+  --color-accent-soft: var(--accent-soft);
+  --color-verified: var(--verified);
+  --color-verified-soft: var(--verified-soft);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-fg: var(--text);
+  --color-fg-muted: var(--text-muted);
+  --color-fg-subtle: var(--text-subtle);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
+  --color-danger: var(--danger);
+
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+}
+
+@theme {
+  /* --radius-* is the Tailwind namespace; aliasing it to a same-named
+     :root var would be circular. Literal values only. */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+:where(input, select, textarea, button, a, [tabindex]):focus-visible {
+  outline: none;
+  border-color: var(--verified);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--verified) 25%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
