@@ -20,20 +20,37 @@ function habitScore(a: Habit, b: Habit): number {
   return distance === 0 ? 1 : distance === 1 ? 0.6 : 0.2;
 }
 
-export const lifestyleFactor: Factor = (client, candidate) => {
-  const diet = dietScore(client.diet, candidate.diet);
+export const lifestyleFactor: Factor = (client, candidate, ctx) => {
+  // A stated diet list is the bar to clear; otherwise fall back to matching
+  // the client's own plate.
+  const wanted = ctx.preference?.diets ?? [];
+  const diet =
+    wanted.length > 0
+      ? wanted.includes(candidate.diet)
+        ? 1
+        : Math.max(...wanted.map((d) => dietScore(d, candidate.diet))) * 0.8
+      : dietScore(client.diet, candidate.diet);
   const smoking = habitScore(client.smoking, candidate.smoking);
   const drinking = habitScore(client.drinking, candidate.drinking);
   const score = (diet + smoking + drinking) / 3;
 
+  const label = (d: Diet) => d.toLowerCase().replace("_", "-");
   const parts: string[] = [];
-  if (client.diet === candidate.diet) {
-    parts.push(`both ${client.diet.toLowerCase().replace("_", "-")}`);
+  if (wanted.length > 0) {
+    parts.push(
+      wanted.includes(candidate.diet)
+        ? `${label(candidate.diet)}, as asked`
+        : `${label(candidate.diet)} against the ${wanted.map(label).join("/")} they wanted`,
+    );
+  } else if (client.diet === candidate.diet) {
+    parts.push(`both ${label(client.diet)}`);
   } else {
-    parts.push(`${candidate.diet.toLowerCase().replace("_", "-")} against ${client.diet.toLowerCase().replace("_", "-")}`);
+    parts.push(`${label(candidate.diet)} against ${label(client.diet)}`);
   }
   if (client.smoking === "NO" && candidate.smoking === "NO") parts.push("neither smokes");
-  else if (candidate.smoking === "YES" && client.smoking === "NO") parts.push("he smokes, she does not");
+  else if (candidate.smoking === "YES" && client.smoking === "NO") {
+    parts.push(`${candidate.gender === "MALE" ? "he" : "she"} smokes, the client does not`);
+  }
 
   return { score, reason: parts.join(", ").replace(/^./, (c) => c.toUpperCase()) };
 };

@@ -7,7 +7,9 @@ import { educationFactor } from "@/lib/matching/factors/education";
 import { relocationFactor } from "@/lib/matching/factors/relocation";
 import { valuesFactor } from "@/lib/matching/factors/values";
 import { lifestyleFactor } from "@/lib/matching/factors/lifestyle";
-import { ctx, profile, yearsAgo } from "./fixtures";
+import { locationFactor } from "@/lib/matching/factors/location";
+import { languageFactor } from "@/lib/matching/factors/language";
+import { ctx, preference, profile, yearsAgo } from "./fixtures";
 
 const male = (o = {}) => profile({ gender: "MALE", ...o });
 const female = (o = {}) => profile({ gender: "FEMALE", ...o });
@@ -169,5 +171,62 @@ describe("lifestyle", () => {
     );
     expect(r.score).toBeGreaterThanOrEqual(0);
     expect(r.score).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("stated preferences", () => {
+  const chennai = ctx(preference({ cities: ["Chennai"] }));
+
+  it("ranks a listed city above the client's own when a list is given", () => {
+    const client = female({ city: "Chennai" });
+    const listed = locationFactor(client, male({ city: "Chennai" }), chennai).score;
+    const off = locationFactor(
+      client,
+      male({ city: "Coimbatore", state: "Tamil Nadu", openToRelocate: "NO" }),
+      chennai,
+    ).score;
+    expect(listed).toBe(1);
+    expect(off).toBeLessThan(0.3);
+  });
+
+  it("gives a candidate credit for being willing to move to a listed city", () => {
+    const client = female({ city: "Chennai" });
+    const willing = locationFactor(client, male({ city: "Noida", openToRelocate: "YES" }), chennai).score;
+    const rooted = locationFactor(client, male({ city: "Noida", openToRelocate: "NO" }), chennai).score;
+    expect(willing).toBeGreaterThan(rooted);
+  });
+
+  it("falls back to the client's own city when no list is stated", () => {
+    const client = female({ city: "Chennai", state: "Tamil Nadu" });
+    expect(locationFactor(client, male({ city: "Chennai" }), ctx()).score).toBe(1);
+  });
+
+  it("scores a stated mother tongue above one the client merely shares", () => {
+    const tamil = ctx(preference({ motherTongues: ["Tamil"] }));
+    const client = female({ motherTongue: "Tamil", languages: ["Tamil", "Hindi"] });
+    const asked = languageFactor(client, male({ motherTongue: "Tamil" }), tamil).score;
+    const other = languageFactor(
+      client,
+      male({ motherTongue: "Hindi", languages: ["Hindi", "English"] }),
+      tamil,
+    ).score;
+    expect(asked).toBe(1);
+    expect(other).toBeLessThan(0.5);
+  });
+
+  it("penalises a diet the client ruled out", () => {
+    const veg = ctx(preference({ diets: ["VEG", "JAIN"] }));
+    const client = female({ diet: "NON_VEG" });
+    const ok = lifestyleFactor(client, male({ diet: "VEG" }), veg).score;
+    const not = lifestyleFactor(client, male({ diet: "NON_VEG" }), veg).score;
+    expect(ok).toBeGreaterThan(not);
+  });
+
+  it("does not reward a candidate for merely matching the client's own plate", () => {
+    const veg = ctx(preference({ diets: ["VEG"] }));
+    const client = female({ diet: "NON_VEG", smoking: "NO", drinking: "NO" });
+    const twin = lifestyleFactor(client, male({ diet: "NON_VEG", smoking: "NO", drinking: "NO" }), veg);
+    expect(twin.score).toBeLessThan(1);
+    expect(twin.reason).toContain("they wanted");
   });
 });
