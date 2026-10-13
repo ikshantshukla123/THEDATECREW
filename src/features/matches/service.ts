@@ -14,12 +14,7 @@ import * as repo from "./repo";
 
 /** Stage 1 shortlist size, then the top N go to the model. */
 const CANDIDATE_POOL = 120;
-/**
- * Six, not ten. The reasoning model emits ~550 output tokens per candidate;
- * at ten it took 70s and returned an empty array, at six it is 38s and
- * reliable.
- */
-const SHORTLIST = 6;
+const SHORTLIST = 10;
 
 export async function getMatches(clientId: string) {
   const matches = await repo.listMatches(clientId);

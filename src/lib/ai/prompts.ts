@@ -18,7 +18,13 @@ Reserve HIGH_POTENTIAL for the genuinely exceptional, typically no more than a \
 quarter of a shortlist, and use the full range below it. A shortlist where \
 everyone is High Potential is a failed ranking.
 
-Return strict JSON only. Use the exact ref strings given to you.`;
+Return strict JSON only, in exactly this shape — one object with a "matches"
+array, one entry per candidate, using the exact ref strings you were given:
+
+{"matches":[{"ref":"C1","tier":"GOOD","reasons":["..."],"concern":"..." }]}
+
+"tier" must be one of HIGH_POTENTIAL, GOOD, WORTH_EXPLORING, LOW. Do not
+rename the fields, do not key the object by ref, and do not invent tiers.`;
 
 export function buildRankPrompt(input: {
   client: SanitizedProfile;
@@ -59,6 +65,11 @@ End with a soft next step, such as offering to set up a call.
 
 Use the candidate's "gender" field for pronouns: MALE is he/him, FEMALE is \
 she/her. Never guess.
+
+Write prose, not a profile dump. Pick the two or three things that actually \
+make this worth a conversation and say why they matter. Never recite raw \
+fields — no income bands, no heights in centimetres, no repeating a detail \
+you have already mentioned.
 
 Use ONLY the facts in "candidate" and "whyThisMatch". Do not infer or invent \
 anything about either person — particularly not the client's job, interests or \
