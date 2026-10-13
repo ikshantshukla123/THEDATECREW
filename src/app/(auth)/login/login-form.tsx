@@ -1,19 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { z } from "zod";
-
-const LoginSchema = z.object({
-  email: z.email("Enter a valid email address"),
-  password: z.string().min(1, "Enter your password"),
-});
-
-type LoginValues = z.infer<typeof LoginSchema>;
+import { loginAction } from "@/features/auth/actions";
+import { LoginSchema, type LoginInput as LoginValues } from "@/features/auth/schemas";
 
 export function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -27,9 +24,19 @@ export function LoginForm() {
   });
 
   async function onSubmit(values: LoginValues) {
-    // TODO: replace with the `login` server action.
-    void values;
-    setFormError("Authentication is not wired up yet.");
+    setFormError(null);
+    const result = await loginAction(values);
+
+    if (!result.ok) {
+      setFormError(result.error.message);
+      return;
+    }
+
+    // Only honour same-origin paths — an open redirect otherwise.
+    const from = searchParams.get("from");
+    const target = from?.startsWith("/") && !from.startsWith("//") ? from : "/customers";
+    router.replace(target);
+    router.refresh();
   }
 
   const fieldClass =
@@ -114,7 +121,9 @@ export function LoginForm() {
             Demo credentials
           </p>
           <p className="mt-1.5 font-mono text-xs text-fg-muted">
-            Seeded in milestone 1 — see README.
+            harshit@thedatingcompany.in
+            <br />
+            matchmaker123
           </p>
         </div>
       )}
