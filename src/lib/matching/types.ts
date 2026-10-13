@@ -1,6 +1,6 @@
 import type {
   Diet, EducationLevel, FamilyType, FamilyValues, Gender,
-  Habit, MaritalStatus, YesNoMaybe,
+  Habit, Manglik, MaritalStatus, YesNoMaybe,
 } from "@prisma/client";
 
 /** The subset of a profile the engine scores on. No names, no contact. */
@@ -19,6 +19,7 @@ export type MatchProfile = {
   languages: string[];
   religion: string;
   caste: string | null;
+  manglik: Manglik;
   familyType: FamilyType;
   familyValues: FamilyValues;
   diet: Diet;

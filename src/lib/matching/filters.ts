@@ -4,6 +4,10 @@ import { MS_PER_YEAR, type MatchProfile, type Preference } from "./types";
 /**
  * Stage 1: hard filters pushed into Postgres so the engine only scores a
  * plausible shortlist. Everything here is a dealbreaker, not a preference.
+ *
+ * Soft preferences (cities, motherTongues, diets, minIncome) deliberately
+ * live in the factors instead — narrowing the pool on them would strand
+ * clients with specific tastes on an empty results page.
  */
 export function buildCandidateFilter(
   client: MatchProfile,
@@ -18,7 +22,17 @@ export function buildCandidateFilter(
     id: { notIn: excludeIds },
   };
 
-  if (!preference) return where;
+  // A hard yes/no on children is a dealbreaker against the opposite answer.
+  // Driven by the client's own biodata, so it applies with or without a
+  // saved preference row.
+  if (client.wantKids === "YES") where.wantKids = { not: "NO" };
+  else if (client.wantKids === "NO") where.wantKids = { not: "YES" };
+
+  // No stated preference still means never-married, the house default.
+  if (!preference) {
+    where.maritalStatus = "NEVER_MARRIED";
+    return where;
+  }
 
   // Age range converts to a date-of-birth window.
   if (preference.maxAge !== null || preference.minAge !== null) {
@@ -44,13 +58,19 @@ export function buildCandidateFilter(
     where.caste = { in: preference.castes };
   }
 
+  // Accepting a second marriage still rules out anyone not yet free to
+  // remarry; declining it means never-married only.
   where.maritalStatus = preference.acceptDivorced
-    ? { not: "ANNULLED" }
+    ? { not: "AWAITING_DIVORCE" }
     : "NEVER_MARRIED";
 
-  // A hard yes/no on children is a dealbreaker against the opposite answer.
-  if (client.wantKids === "YES") where.wantKids = { not: "NO" };
-  else if (client.wantKids === "NO") where.wantKids = { not: "YES" };
+  // Manglik dosha is considered cancelled when both sides carry it, so the
+  // rule is "match like with like" rather than "exclude manglik". PARTIAL
+  // reads as compatible either way, and an unknown chart asserts nothing.
+  if (preference.manglikMatters) {
+    if (client.manglik === "YES") where.manglik = { in: ["YES", "PARTIAL"] };
+    else if (client.manglik === "NO") where.manglik = { in: ["NO", "PARTIAL"] };
+  }
 
   return where;
 }

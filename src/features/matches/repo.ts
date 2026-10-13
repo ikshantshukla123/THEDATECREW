@@ -7,7 +7,7 @@ export const MATCH_PROFILE_SELECT = {
   id: true, gender: true, dateOfBirth: true, heightCm: true, city: true,
   state: true, annualIncome: true, highestEducation: true, designation: true,
   maritalStatus: true, motherTongue: true, languages: true, religion: true,
-  caste: true, familyType: true, familyValues: true, diet: true,
+  caste: true, manglik: true, familyType: true, familyValues: true, diet: true,
   smoking: true, drinking: true, wantKids: true, openToRelocate: true,
 } as const;
 

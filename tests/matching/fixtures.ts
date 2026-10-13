@@ -22,6 +22,7 @@ export function profile(over: Partial<MatchProfile> = {}): MatchProfile {
     languages: ["Marathi", "Hindi", "English"],
     religion: "Hindu",
     caste: "Deshastha Brahmin",
+    manglik: "NO",
     familyType: "NUCLEAR",
     familyValues: "MODERATE",
     diet: "VEG",
