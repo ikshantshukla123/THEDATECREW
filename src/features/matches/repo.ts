@@ -40,3 +40,43 @@ export function listMatches(clientId: string) {
 }
 
 export type MatchRow = Awaited<ReturnType<typeof listMatches>>[number];
+
+/**
+ * How many OTHER clients each candidate is in play with. The pool is shared
+ * across matchmakers, so the same person can be shortlisted several times —
+ * worth knowing before you send.
+ *
+ * Match is unique on (clientId, candidateId), so a row count is a distinct
+ * client count. One grouped query, not one per card.
+ */
+export async function countCandidateOverlap(candidateIds: string[], excludeClientId: string) {
+  if (candidateIds.length === 0) return new Map<string, { shortlisted: number; sent: number }>();
+
+  const base = {
+    candidateId: { in: candidateIds },
+    clientId: { not: excludeClientId },
+  };
+
+  const [shortlisted, sent] = await Promise.all([
+    prisma.match.groupBy({
+      by: ["candidateId"],
+      where: { ...base, status: { notIn: ["SKIPPED"] } },
+      _count: true,
+    }),
+    prisma.match.groupBy({
+      by: ["candidateId"],
+      where: { ...base, status: { in: ["SENT", "ACCEPTED", "DECLINED"] } },
+      _count: true,
+    }),
+  ]);
+
+  const sentBy = new Map(sent.map((r) => [r.candidateId, r._count]));
+  return new Map(
+    shortlisted.map((r) => [
+      r.candidateId,
+      { shortlisted: r._count, sent: sentBy.get(r.candidateId) ?? 0 },
+    ]),
+  );
+}
+
+export type CandidateOverlap = { shortlisted: number; sent: number };

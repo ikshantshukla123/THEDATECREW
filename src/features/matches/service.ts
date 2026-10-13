@@ -16,9 +16,19 @@ import * as repo from "./repo";
 const CANDIDATE_POOL = 120;
 const SHORTLIST = 10;
 
-export function getMatches(clientId: string) {
-  return repo.listMatches(clientId);
+export async function getMatches(clientId: string) {
+  const matches = await repo.listMatches(clientId);
+  const overlap = await repo.countCandidateOverlap(
+    matches.map((m) => m.candidateId),
+    clientId,
+  );
+  return matches.map((m) => ({
+    ...m,
+    overlap: overlap.get(m.candidateId) ?? { shortlisted: 0, sent: 0 },
+  }));
 }
+
+export type MatchWithOverlap = Awaited<ReturnType<typeof getMatches>>[number];
 
 export async function generateMatches(matchmakerId: string, clientId: string) {
   const client = await findClientById(matchmakerId, clientId);

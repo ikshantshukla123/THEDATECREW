@@ -8,7 +8,7 @@ import { Avatar } from "@/components/shared/avatar";
 import { TierBadge } from "./tier-badge";
 import { age, formatHeight, titleCase } from "@/lib/format";
 import { getIntroAction, sendMatchAction } from "../actions";
-import type { MatchRow } from "../repo";
+import type { MatchWithOverlap } from "../service";
 
 export function SendMatchDialog({
   match,
@@ -16,7 +16,7 @@ export function SendMatchDialog({
   clientFirstName,
   onClose,
 }: {
-  match: MatchRow;
+  match: MatchWithOverlap;
   clientId: string;
   clientFirstName: string;
   onClose: () => void;

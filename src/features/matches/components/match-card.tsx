@@ -11,7 +11,8 @@ import { TierBadge } from "./tier-badge";
 import { FactorBreakdown } from "./factor-breakdown";
 import { SendMatchDialog } from "./send-match-dialog";
 import { saveMatchAction, skipMatchAction } from "../actions";
-import type { MatchRow } from "../repo";
+import type { MatchWithOverlap } from "../service";
+import { OverlapBadge } from "./overlap-badge";
 
 type Row = { factor: string; weight: number; score: number; reason: string };
 
@@ -20,7 +21,7 @@ export function MatchCard({
   clientId,
   clientFirstName,
 }: {
-  match: MatchRow;
+  match: MatchWithOverlap;
   clientId: string;
   clientFirstName: string;
 }) {
@@ -59,7 +60,10 @@ export function MatchCard({
             </div>
             {match.aiTier && <ScoreRing score={match.ruleScore} tier={match.aiTier} />}
           </div>
-          <div className="mt-2.5">{match.aiTier && <TierBadge tier={match.aiTier} />}</div>
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            {match.aiTier && <TierBadge tier={match.aiTier} />}
+            <OverlapBadge overlap={match.overlap} />
+          </div>
         </div>
       </div>
 
