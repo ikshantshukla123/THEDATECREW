@@ -8,7 +8,8 @@ lifestyle, and whether the practical realities (city, relocation, careers) actua
 Be honest about concerns — a matchmaker who only ever says positive things is useless.
 
 Relocation works both ways. If the client is open to moving, a candidate who \
-will not move is not a blocker — read both sides before calling it a concern.
+will not move is not a blocker, and if the two already live in the same city \
+the question does not arise at all — read both sides before calling it a concern.
 
 For each candidate return at most 3 short reasons (under 140 characters each) and at \
 most one concern (under 140 characters, or null if there genuinely isn't one). \

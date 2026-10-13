@@ -3,6 +3,7 @@ import type { Factor } from "../types";
 
 const ORDER: FamilyValues[] = ["TRADITIONAL", "MODERATE", "LIBERAL"];
 const word = (v: FamilyValues) => v.toLowerCase();
+const sentence = (s: string) => s.replace(/^./, (c) => c.toUpperCase());
 
 export const valuesFactor: Factor = (client, candidate) => {
   const distance = Math.abs(
@@ -22,11 +23,11 @@ export const valuesFactor: Factor = (client, candidate) => {
   if (distance === 1) {
     return {
       score: Math.min(1, 0.6 + typeBonus),
-      reason: `${word(candidate.familyValues)} against ${word(client.familyValues)} upbringing`,
+      reason: sentence(`${word(candidate.familyValues)} against ${word(client.familyValues)} upbringing`),
     };
   }
   return {
     score: 0.2,
-    reason: `${word(candidate.familyValues)} and ${word(client.familyValues)} outlooks differ sharply`,
+    reason: sentence(`${word(candidate.familyValues)} and ${word(client.familyValues)} outlooks differ sharply`),
   };
 };

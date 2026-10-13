@@ -230,3 +230,26 @@ describe("stated preferences", () => {
     expect(twin.reason).toContain("they wanted");
   });
 });
+
+describe("breakdown wording", () => {
+  it("does not repeat the location reason under relocation", () => {
+    const client = female({ city: "Surat" });
+    const candidate = male({ city: "Surat" });
+    const loc = locationFactor(client, candidate, ctx()).reason;
+    const rel = relocationFactor(client, candidate, ctx()).reason;
+    expect(rel).not.toBe(loc);
+    expect(rel.toLowerCase()).toContain("move");
+  });
+
+  it("starts every values reason with a capital", () => {
+    const pairs = [
+      ["LIBERAL", "MODERATE"],
+      ["TRADITIONAL", "LIBERAL"],
+      ["MODERATE", "MODERATE"],
+    ] as const;
+    for (const [a, b] of pairs) {
+      const r = valuesFactor(female({ familyValues: b }), male({ familyValues: a }), ctx());
+      expect(r.reason[0]).toBe(r.reason[0].toUpperCase());
+    }
+  });
+});

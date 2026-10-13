@@ -103,7 +103,7 @@ export function MatchCard({
               type="button"
               disabled={pending}
               onClick={() => act(skipMatchAction, `Skipped ${c.firstName}`)}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium text-fg-muted transition-colors hover:bg-surface-muted disabled:opacity-50"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium whitespace-nowrap text-fg-muted transition-colors hover:bg-surface-muted disabled:opacity-50"
             >
               <X className="size-4" aria-hidden /> Skip
             </button>
@@ -111,7 +111,7 @@ export function MatchCard({
               type="button"
               disabled={pending || match.status === "SAVED"}
               onClick={() => act(saveMatchAction, `Saved ${c.firstName} for later`)}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-border px-3 text-[13px] font-medium text-fg transition-colors hover:bg-surface-muted disabled:opacity-50"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-border px-3 text-[13px] font-medium whitespace-nowrap text-fg transition-colors hover:bg-surface-muted disabled:opacity-50"
             >
               <Bookmark className="size-4" aria-hidden />
               {match.status === "SAVED" ? "Saved" : "Save"}
@@ -120,7 +120,7 @@ export function MatchCard({
               type="button"
               disabled={pending}
               onClick={() => setSending(true)}
-              className="ml-auto inline-flex min-h-10 items-center gap-1.5 rounded-full bg-primary px-4 text-[13px] font-semibold text-primary-fg transition-colors hover:bg-primary-hover disabled:opacity-50"
+              className="ml-auto inline-flex min-h-10 items-center gap-1.5 rounded-full bg-primary px-4 text-[13px] font-semibold whitespace-nowrap text-primary-fg transition-colors hover:bg-primary-hover disabled:opacity-50"
             >
               <Heart className="size-4" aria-hidden /> Send Match
             </button>
