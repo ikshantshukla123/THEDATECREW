@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { rankCandidates, scorePair, strategyFor } from "@/lib/matching";
-import { tierForScore } from "@/lib/matching/tier";
+import { clampTier, tierForScore } from "@/lib/matching/tier";
 import { ctx, preference, profile, yearsAgo } from "./fixtures";
 
 describe("scorePair", () => {
@@ -167,5 +167,31 @@ describe("tierForScore", () => {
     // Survivors cluster high; the tiers must still separate them.
     const spread = [91, 85, 80, 74, 68, 60].map(tierForScore);
     expect(new Set(spread).size).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("clampTier", () => {
+  it("keeps the model's tier when it is within one band", () => {
+    // 86 is GOOD by the rules; WORTH_EXPLORING is one band down.
+    expect(clampTier("WORTH_EXPLORING", 86)).toBe("WORTH_EXPLORING");
+    expect(clampTier("HIGH_POTENTIAL", 86)).toBe("HIGH_POTENTIAL");
+  });
+
+  it("will not let the label contradict the score", () => {
+    // The case that surfaced this: a 93 labelled LOW, ranked below an 86.
+    expect(clampTier("LOW", 93)).toBe("GOOD");
+    expect(clampTier("HIGH_POTENTIAL", 40)).toBe("WORTH_EXPLORING");
+  });
+
+  it("leaves an agreeing tier untouched", () => {
+    expect(clampTier("HIGH_POTENTIAL", 93)).toBe("HIGH_POTENTIAL");
+    expect(clampTier("LOW", 40)).toBe("LOW");
+  });
+
+  it("never ranks a higher score below a lower one by more than a band", () => {
+    const better = clampTier("LOW", 93);
+    const worse = clampTier("WORTH_EXPLORING", 86);
+    const order = ["HIGH_POTENTIAL", "GOOD", "WORTH_EXPLORING", "LOW"];
+    expect(order.indexOf(better)).toBeLessThanOrEqual(order.indexOf(worse));
   });
 });

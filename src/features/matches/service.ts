@@ -6,6 +6,7 @@ import { logActivity } from "@/features/audit/service";
 import { findClientById } from "@/features/customers/repo";
 import { buildCandidateFilter } from "@/lib/matching/filters";
 import { pairHash, rankCandidates, tierForScore } from "@/lib/matching";
+import { clampTier } from "@/lib/matching/tier";
 import type { MatchProfile, Preference } from "@/lib/matching/types";
 import { sanitize } from "@/lib/ai/sanitize";
 import { rankWithAi } from "@/lib/ai/rank-matches";
@@ -75,7 +76,9 @@ export async function generateMatches(matchmakerId: string, clientId: string) {
 
     // Per candidate, not per batch: a model that skipped one row still
     // leaves the rest annotated.
-    const tier: MatchTier = ai?.tier ?? tierForScore(r.ruleScore);
+    const tier: MatchTier = ai?.tier
+      ? clampTier(ai.tier, r.ruleScore)
+      : tierForScore(r.ruleScore);
     const reasons = ai?.reasons ?? r.breakdown.slice(0, 2).map((b) => b.reason);
     const concern = ai?.concern ?? weakestReason(r.breakdown);
 
