@@ -17,11 +17,16 @@ export type IntroInput = {
 export type Intro = { subject: string; body: string; source: "ai" | "template"; model: string | null };
 
 /**
+ * Reasoning model first, unlike ranking. This is one short email a matchmaker
+ * asked for, so a second or two matters far less than accuracy — the smaller
+ * model embellishes, inventing interests and character traits that are not in
+ * the profile. Ranking stays fast-first because it is a batch of ten.
+ *
  * Free endpoints are rate-limited per shared upstream pool, independent of
  * our own key quota, so one model being busy must not block a send.
  */
 function modelChain(): string[] {
-  const chain = [env.AI_MODEL_FAST, env.AI_MODEL_REASONING].filter(Boolean) as string[];
+  const chain = [env.AI_MODEL_REASONING, env.AI_MODEL_FAST].filter(Boolean) as string[];
   return [...new Set(chain)];
 }
 
