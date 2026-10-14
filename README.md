@@ -6,6 +6,9 @@ behind every score, and send a match across.
 
 Built for the Full Stack Developer Internship assignment.
 
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Prisma 7 with
+Neon Postgres · zod · Vitest · deployed on Vercel.
+
 ## Login
 
 Any of these three work, same password for all. Each one has 26 clients of
@@ -20,50 +23,60 @@ their own, and a matchmaker can only see their own list.
 The pool has 300 verified profiles (150 male, 150 female) on top of the 78
 clients, so there is always something to match against.
 
-## Stack
+## The thinking behind it
 
-Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Prisma 7 with
-Neon Postgres · zod · Vitest.
+**Tech choices.** Next.js 16 on the App Router, because Server Components let
+a page read from the database directly and Server Actions let a form write
+back, so there is no REST layer in the middle that has to be kept in sync with
+the UI. Postgres on Neon rather than static JSON — the moment you have
+matchmakers who must only see their own clients, an audit trail, and a pipeline
+that actually moves, you want real constraints and transactions instead of a
+file. Prisma carries types from the schema up into the components, Tailwind v4
+does the styling, Vitest covers the engine. The whole thing deploys to Vercel
+as one unit.
 
-Server Components do the reading, Server Actions do the writing, so there is no
-separate API layer to keep in sync.
-
-## How matching works
-
-Two stages. First the database throws out anyone who is a non-starter — wrong
-gender, unverified, outside the stated age or height range, wrong religion or
-caste, marital status the client did not agree to, opposite answer on children,
-and same gotra where both sides are Hindu.
-
-Whoever survives is then scored out of 100 on eleven factors, weighted
-differently by gender:
+**Matching logic.** Two stages, kept apart on purpose. First Postgres rules out
+anyone who is a non-starter: wrong gender, unverified, outside the stated age
+or height range, a religion or caste the client did not agree to, a marital
+status they ruled out, the opposite answer on children, and same gotra where
+both sides are Hindu, since sagotra marriage is not done. Whoever survives is
+scored out of 100 across eleven factors, weighted by gender:
 
 - **Male client** — age 20, kids 18, income 14, height 12, values 10,
   relocation 10, lifestyle 8, language 4, location 4
 - **Female client** — education 15, career 15, values 15, kids 15,
   relocation 12, lifestyle 10, age 8, language 5, location 5
 
-Every factor returns a plain-English reason along with its number, which is
-what the score breakdown on each card is showing. Preferences the client has
-actually typed in — cities, mother tongues, diet — carry extra weight over the
-ones we infer from their own biodata.
+For a male client the brief's four rules carry 64 of the 100 marks between
+them; for a female client the weight moves to profession, education, values and
+relocation. Every factor hands back a sentence along with its number, which is
+what the score breakdown on each card is showing — a matchmaker is never asked
+to trust a figure she cannot interrogate. One refinement of my own: a
+preference the client has actually typed in, such as a city or a mother tongue,
+is weighted higher than one we infer from her own biodata. The engine is pure
+and lives in `src/lib/matching`, so all of it is unit tested.
 
-Engine lives in `src/lib/matching` and is pure, so all of it is unit tested.
+**How AI is used.** The model refines, it does not decide. Candidates go to it
+with names and contact details stripped out, and it returns a tier, up to three
+reasons and one honest concern for each. It may move a tier by one band but
+never invert it — I added that bound after watching it mark a 93 as Low while
+leaving an 86 at Worth Exploring, on a relocation objection the engine had
+already scored correctly. The second use is the intro email behind Send Match,
+drafted by the model and editable before anything goes out. If the key is
+missing or the model times out, nothing breaks: the cards fall back to
+rule-based tiers and reasons, and the UI says that is what happened.
 
-## Where AI comes in
-
-Two places, both optional:
-
-1. **Ranking.** The top candidates go to the model with identities stripped
-   out, and it returns a tier, up to three reasons and one honest concern per
-   person. It can move a tier by one band, not more — the number has a tested
-   derivation and the model does not get to contradict it.
-2. **Intro emails.** When you hit Send Match, it drafts a short personalised
-   note which you can edit before sending.
-
-If the key is missing or the model times out, nothing breaks — the cards fall
-back to rule-based tiers and reasons, and the UI tells you that is what
-happened.
+**Assumptions.** A matchmaker only ever sees her own clients, so every query is
+scoped to her, while the pool of 300 profiles is shared across the firm — which
+is why a card will tell you a candidate is already in play with someone else.
+The match email goes to the client, not to the candidate; the candidate is
+never contacted and never learns she was suggested. Soft preferences such as
+city and diet shape the score but do not filter, otherwise a client with
+specific tastes lands on an empty page. Manglik is shown only on Hindu
+profiles, and partial manglik is treated as compatible either way, since
+astrologers themselves disagree on those charts. Sending is mocked into an
+outbox table, as the brief allows, so wiring a real provider later means
+draining queued rows rather than touching any of this logic.
 
 ## Running it locally
 
