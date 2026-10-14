@@ -100,3 +100,6 @@ desktop.ini
 .claude/
 .windsurf/
 .agents/
+
+# Personal notes, not part of the project
+*.pdf
