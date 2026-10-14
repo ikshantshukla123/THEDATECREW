@@ -95,3 +95,8 @@ desktop.ini
 # Full-size PNG originals. Only the optimized WebP in public/ is committed.
 # Drop new downloads in here and run `pnpm images`.
 /assets/raw/
+
+# Editor skill symlinks dropped in by the Prisma CLI
+.claude/
+.windsurf/
+.agents/
