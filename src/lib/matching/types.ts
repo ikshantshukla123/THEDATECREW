@@ -19,6 +19,7 @@ export type MatchProfile = {
   languages: string[];
   religion: string;
   caste: string | null;
+  gotra: string | null;
   manglik: Manglik;
   familyType: FamilyType;
   familyValues: FamilyValues;

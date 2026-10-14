@@ -62,6 +62,22 @@ describe("hard filters", () => {
       .toBeUndefined();
   });
 
+  it("rules out a same-gotra match between two Hindus", () => {
+    const client = male({ religion: "Hindu", gotra: "Bharadwaj" });
+    expect(build(client).NOT).toEqual({ religion: "Hindu", gotra: "Bharadwaj" });
+  });
+
+  it("does not apply the gotra rule outside Hinduism or without a gotra", () => {
+    expect(build(male({ religion: "Sikh", gotra: "Bharadwaj" })).NOT).toBeUndefined();
+    expect(build(male({ religion: "Hindu", gotra: null })).NOT).toBeUndefined();
+  });
+
+  it("applies the gotra rule even with no saved preferences", () => {
+    const client = male({ religion: "Hindu", gotra: "Kashyap" });
+    expect(buildCandidateFilter(client, null, [], NOW).NOT)
+      .toEqual({ religion: "Hindu", gotra: "Kashyap" });
+  });
+
   it("leaves soft preferences to the factors, not the query", () => {
     const w = build(male(), preference({ cities: ["Chennai"], diets: ["VEG"], minIncome: 5_000_000 }));
     expect(w.city).toBeUndefined();

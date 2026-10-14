@@ -28,6 +28,14 @@ export function buildCandidateFilter(
   if (client.wantKids === "YES") where.wantKids = { not: "NO" };
   else if (client.wantKids === "NO") where.wantKids = { not: "YES" };
 
+  // Sagotra marriage is prohibited in Hindu tradition — a shared gotra means
+  // a shared patrilineal ancestor, so the pair is treated as siblings. Driven
+  // by the client's own biodata, and only where both sides are Hindu with a
+  // gotra on record.
+  if (client.religion === "Hindu" && client.gotra) {
+    where.NOT = { religion: "Hindu", gotra: client.gotra };
+  }
+
   // No stated preference still means never-married, the house default.
   if (!preference) {
     where.maritalStatus = "NEVER_MARRIED";

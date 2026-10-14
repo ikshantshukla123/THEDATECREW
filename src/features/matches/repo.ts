@@ -7,7 +7,7 @@ export const MATCH_PROFILE_SELECT = {
   id: true, gender: true, dateOfBirth: true, heightCm: true, city: true,
   state: true, annualIncome: true, highestEducation: true, designation: true,
   maritalStatus: true, motherTongue: true, languages: true, religion: true,
-  caste: true, manglik: true, familyType: true, familyValues: true, diet: true,
+  caste: true, gotra: true, manglik: true, familyType: true, familyValues: true, diet: true,
   smoking: true, drinking: true, wantKids: true, openToRelocate: true,
 } as const;
 
@@ -25,7 +25,9 @@ export function findExistingMatches(clientId: string) {
 export function listMatches(clientId: string) {
   return prisma.match.findMany({
     where: { clientId, status: { notIn: ["SKIPPED"] } },
-    orderBy: [{ status: "asc" }, { ruleScore: "desc" }],
+    // Tier before score: the list is read top-down, and a Good above a
+    // High Potential looks broken even when the model had a fair reason.
+    orderBy: [{ status: "asc" }, { aiTier: "asc" }, { ruleScore: "desc" }],
     include: {
       candidate: {
         select: {

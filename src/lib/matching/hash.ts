@@ -6,14 +6,14 @@ import type { MatchProfile, Preference } from "./types";
  * rules change would leave every already-scored pair frozen at its old number,
  * because nothing else in the hash moved.
  */
-const ENGINE_VERSION = 2;
+const ENGINE_VERSION = 3;
 
 /** Only the fields that affect scoring; cosmetic edits must not invalidate. */
 function fingerprint(p: MatchProfile): string {
   return [
     p.id, p.dateOfBirth.getTime(), p.heightCm, p.city, p.state, p.annualIncome,
     p.highestEducation, p.maritalStatus, p.motherTongue, [...p.languages].sort().join(","),
-    p.religion, p.caste, p.manglik, p.familyType, p.familyValues, p.diet, p.smoking,
+    p.religion, p.caste, p.gotra, p.manglik, p.familyType, p.familyValues, p.diet, p.smoking,
     p.drinking, p.wantKids, p.openToRelocate,
   ].join("|");
 }
