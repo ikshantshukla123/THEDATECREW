@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import type { PipelineStatus } from "@prisma/client";
 import { prisma, withRetry } from "@/lib/db";
 import { NotFoundError, ValidationError } from "@/lib/errors";
@@ -25,11 +26,19 @@ export async function getClientList(matchmakerId: string, filters: CustomerFilte
 
 export type { CustomerFilters };
 
-export async function getClientDetail(matchmakerId: string, profileId: string) {
+/**
+ * Request-scoped memo. The client layout and whichever tab is rendering both
+ * need this, so without it every client page runs the same query twice — one
+ * wasted round trip per view, which is ~250ms from here to us-east-2.
+ */
+export const getClientDetail = cache(async function getClientDetail(
+  matchmakerId: string,
+  profileId: string,
+) {
   const client = await repo.findClientById(matchmakerId, profileId);
   if (!client) throw new NotFoundError("Client");
   return client;
-}
+});
 
 /** Services own transactions; the activity row is written inside it. */
 export async function updateStatus(
